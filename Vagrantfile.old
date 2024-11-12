@@ -1,3 +1,4 @@
+
 require "yaml"
 vagrant_root = File.dirname(File.expand_path(__FILE__))
 settings = YAML.load_file "#{vagrant_root}/settings.yaml"
@@ -60,6 +61,7 @@ Vagrant.configure("2") do |config|
   end
 
   (1..NUM_WORKER_NODES).each do |i|
+
     config.vm.define "node0#{i}" do |node|
       node.vm.hostname = "node0#{i}"
       node.vm.network "private_network", ip: IP_NW + "#{IP_START + i}"
@@ -84,20 +86,13 @@ Vagrant.configure("2") do |config|
           "OS" => settings["software"]["os"]
         },
         path: "scripts/common.sh"
-      node.vm.provision "shell", inline: <<-SHELL
-        # Copiar certificados do controlplane
-        sudo scp controlplane:/etc/kubernetes/pki/ca.crt /etc/kubernetes/pki/
-        sudo scp controlplane:/etc/kubernetes/pki/apiserver.crt /etc/kubernetes/pki/
-        sudo scp controlplane:/etc/kubernetes/pki/apiserver.key /etc/kubernetes/pki/
+      node.vm.provision "shell", path: "scripts/node.sh"
 
-        # Executar o comando join
-        kubeadm join #{settings["network"]["control_ip"]}:6443 --token #{settings["kubeadm"]["token"]} --discovery-token-ca-cert-hash sha256:#{settings["kubeadm"]["discovery_token_ca_cert_hash"]}
-      SHELL
-
-      # Instalar o dashboard após provisionar o último worker, se estiver habilitado.
+      # Only install the dashboard after provisioning the last worker (and when enabled).
       if i == NUM_WORKER_NODES and settings["software"]["dashboard"] and settings["software"]["dashboard"] != ""
         node.vm.provision "shell", path: "scripts/dashboard.sh"
       end
     end
+
   end
-end
+end 
